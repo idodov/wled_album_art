@@ -23,7 +23,7 @@ This AppDaemon app for Home Assistant synchronizes the colors of your WLED light
     Ensure you have the `Pillow` installed in your AppDaemon environment:
 
 2.  **Place the `wled_album_art.py` Script in apps directory:**
-    Copy the python script into the newly created directory, so it's located at `apps/wled_album_art.py`.
+    Copy the python script into the apps directory, so it's located at `apps/wled_album_art.py`.
      
 3. **Configure `apps.yaml`**
     Add the following to your `apps/apps.yaml` file, adjusting the parameters to match your setup:
