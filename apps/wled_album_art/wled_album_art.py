@@ -20,7 +20,7 @@ from io import BytesIO
 from PIL import Image, ImageEnhance
 import json
 import aiohttp
-from collections import Counter
+from collections import Counter, OrderedDict
 import random
 import math
 
@@ -32,32 +32,43 @@ class WLEDImageSync(hass.Hass):
         self.wled_ip = self.args.get('wled_ip')
         self.ha_url = self.args.get('ha_url')
         self.segment_id = self.args.get('segment_id', 0)
-        self.effect_name = self.args.get('effect_name', 'Solid')  # Default effect
+        self.effect_name = self.args.get('effect_name', 38)  # Default effect
         self.speed_value = self.args.get('speed_value', 128)  # Default speed
         self.intensity_value = self.args.get('intensity_value', 128)  # Default intensity
-        self.pallete = self.args.get('pallete', 5) # Default colors pallete
+        self.pallete = self.args.get('pallete', 5)  # Default colors pallete
+        self.image_cache = OrderedDict() # Initialize cache
+        self.cache_size = 100
+
 
     async def media_player_change(self, entity, attribute, old, new, kwargs):
-        if new and new != old:
-            #self.log(f"Media Player changed: {entity}, new state: {new}")
-            
+        if new and new != old:            
             media_content_id = await self.get_state(entity, attribute="media_content_id")
             if media_content_id:
-                #self.log(f"Media Content Id: {media_content_id}")
-
                 try:
                     # Attempt to get image URL
                     image_url = await self.get_state(entity, attribute="entity_picture")
                     if image_url:
                         image_url = image_url if image_url.startswith('http') else f"{self.ha_url}{image_url}"
+                        
+                    media_artist = await self.get_state(entity, attribute="media_artist")
+                    media_album_name = await self.get_state(entity, attribute="media_album_name")
                     
-                    if image_url:
-                        await self.process_image_and_update_wled(image_url)
-
+                    if media_artist and media_album_name:
+                        cache_key = f"{media_artist}-{media_album_name}"
+                        await self.process_image_and_update_wled(image_url, cache_key)
+                    elif image_url:
+                        await self.process_image_and_update_wled(image_url, None) # Skip cache, process and update
                 except Exception as e:
-                    self.log(f"Error getting Image URL: {e}")
+                    self.log(f"Error getting Media Data: {e}")
 
-    async def process_image_and_update_wled(self, image_url):
+    async def process_image_and_update_wled(self, image_url, cache_key):
+        if cache_key and cache_key in self.image_cache:
+            self.log("Image found in cache")
+            cached_colors = self.image_cache.pop(cache_key) # Move item to the end
+            self.image_cache[cache_key] = cached_colors
+            await self.update_wled(cached_colors)
+            return
+
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(image_url) as response:
@@ -78,12 +89,16 @@ class WLEDImageSync(hass.Hass):
             enhancer = ImageEnhance.Contrast(image)
             image = enhancer.enhance(2.0)
             dominant_colors = await self.most_vibrant_colors_wled(image)
-            #self.log(f"Dominant Colors: {dominant_colors}")
+
+            if cache_key:
+                if len(self.image_cache) >= self.cache_size:
+                    self.image_cache.popitem(last=False)
+                
+                self.image_cache[cache_key] = dominant_colors # Save colors to the cache
             await self.update_wled(dominant_colors)
 
         except Exception as e:
             self.log(f"Error processing image or updating WLED: {e}")
-
 
     def is_strong_color(self, color):
         """Check if at least one RGB component is greater than 200."""
@@ -183,10 +198,7 @@ class WLEDImageSync(hass.Hass):
             try:
                 async with session.post(url, data=json.dumps(payload)) as response:
                     response.raise_for_status()  # Raise an error for bad status codes
-                    if response.status == 200:
-                        #self.log(f"WLED updated successfully. Response: {await response.text()}")
-                        pass
-                    else:
+                    if response.status != 200:
                         self.log(f"WLED Update Fail. Response code: {response.status} Response: {await response.text()}")
             except aiohttp.ClientError as e:
                 self.log(f"Error sending WLED control command: {e}")
