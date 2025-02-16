@@ -69,12 +69,13 @@ This AppDaemon app for Home Assistant synchronizes the colors of your WLED light
 wled_album_art:
     module: wled_album_art
     class: WLEDImageSync
-    ha_url: "http://homeassistant.local:8123"   # Home Assistant URL
-    media_player: "media_player.living_room"    # Replace with your media player entity ID
-    wled_ip: "192.168.86.50"                    # Replace with your WLED's IP address
-    segment_id: 0                               # Segment ID on WLED (optional default 0)
-    effect_name: 38                             # Effect ID on WLED (optional default Solid)
-    speed_value: 128                            # Effect speed (optional default 128)
-    intensity_value: 128                        # Effect intensity (optional default 128)
-    pallete: 5                                  # Color pallete ID
+    ha_url: "http://homeassistant.local:8123"       # Home Assistant URL
+    media_player: "media_player.living_room"        # Replace with your media player entity ID
+    wled_ip: "192.168.86.50"                        # Replace with your WLED's IP address
+    segment_id: 0                                   # Segment ID on WLED (optional default 0)
+    transition_time: 2 # Transition time in seconds # Transition time in seconds (defualt 1)
+    effect_name: 38                                 # Effect ID on WLED (optional default Solid)
+    speed_value: 128                                # Effect speed (optional default 128)
+    intensity_value: 128                            # Effect intensity (optional default 128)
+    pallete: 5                                      # Color pallete ID
 ```
