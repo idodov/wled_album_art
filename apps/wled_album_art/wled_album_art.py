@@ -9,6 +9,7 @@ wled_album_art:
     media_player: "media_player.living_room"                        # Replace with your media player entity ID
     wled_ip: "192.168.86.50"                                        # Replace with your WLED's IP address
     pallete: 5                                                      # Color pallete ID
+    transition_time: 2 # Transition time in seconds                 # Transition time in seconds (defualt 1)
     segment_id: 0 # Segment ID on WLED                              # Optional default 0
     effect_name: 38 # Effect ID on WLED                             # Optional default Solid
     speed_value: 128 # Effect speed                                 # Optional defualt 128
@@ -34,6 +35,7 @@ class WLEDImageSync(hass.Hass):
         self.segment_id = self.args.get('segment_id', 0)
         self.effect_name = self.args.get('effect_name', 38)  # Default effect
         self.speed_value = self.args.get('speed_value', 128)  # Default speed
+        self.transition = self.args.get('transition_time', 1) # Default transition time in seconds
         self.intensity_value = self.args.get('intensity_value', 128)  # Default intensity
         self.pallete = self.args.get('pallete', 5)  # Default colors pallete
         self.image_cache = OrderedDict() # Initialize cache
@@ -177,6 +179,8 @@ class WLEDImageSync(hass.Hass):
         """Sends the color data to WLED asynchronously"""
         # Create WLED JSON payload
         payload = {
+            'on': True,
+            'transition': int(self.transition),
             'seg': [
                 {
                     'id': int(self.segment_id),
@@ -192,7 +196,7 @@ class WLEDImageSync(hass.Hass):
                 }
             ]
         }
-
+        print(payload)
         url = f"http://{self.wled_ip}/json/state"
         async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
             try:
@@ -200,5 +204,7 @@ class WLEDImageSync(hass.Hass):
                     response.raise_for_status()  # Raise an error for bad status codes
                     if response.status != 200:
                         self.log(f"WLED Update Fail. Response code: {response.status} Response: {await response.text()}")
+                    else:
+                        self.log("sent command")
             except aiohttp.ClientError as e:
                 self.log(f"Error sending WLED control command: {e}")
