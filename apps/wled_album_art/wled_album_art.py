@@ -43,7 +43,7 @@ class WLEDImageSync(hass.Hass):
 
 
     async def media_player_change(self, entity, attribute, old, new, kwargs):
-        if new and new != old:            
+        if new and new != old:
             media_content_id = await self.get_state(entity, attribute="media_content_id")
             if media_content_id:
                 try:
@@ -51,10 +51,10 @@ class WLEDImageSync(hass.Hass):
                     image_url = await self.get_state(entity, attribute="entity_picture")
                     if image_url:
                         image_url = image_url if image_url.startswith('http') else f"{self.ha_url}{image_url}"
-                        
+
                     media_artist = await self.get_state(entity, attribute="media_artist")
                     media_album_name = await self.get_state(entity, attribute="media_album_name")
-                    
+
                     if media_artist and media_album_name:
                         cache_key = f"{media_artist}-{media_album_name}"
                         await self.process_image_and_update_wled(image_url, cache_key)
@@ -95,7 +95,7 @@ class WLEDImageSync(hass.Hass):
             if cache_key:
                 if len(self.image_cache) >= self.cache_size:
                     self.image_cache.popitem(last=False)
-                
+
                 self.image_cache[cache_key] = dominant_colors # Save colors to the cache
             await self.update_wled(dominant_colors)
 
@@ -109,13 +109,13 @@ class WLEDImageSync(hass.Hass):
     async def most_vibrant_colors_wled(self, full_img):
         """Extract the three most dominant vibrant colors from an image, ensuring diverse hues and strong colors."""
         full_img = full_img.resize((16, 16), Image.Resampling.LANCZOS)
-        
+
         color_counts = Counter(full_img.getdata())
         most_common_colors = color_counts.most_common(50)  # Get more colors
-    
+
         # Filter only vibrant colors
         vibrant_colors = [(color, count) for color, count in most_common_colors if self.is_vibrant_color(*color)]
-    
+
         # Sort by frequency and saturation
         def color_score(color_count):
             color, count = color_count
@@ -123,17 +123,17 @@ class WLEDImageSync(hass.Hass):
             min_val = min(color)
             saturation = (max_val - min_val) / max_val if max_val > 0 else 0
             return count * saturation  # Score = frequency * saturation
-        
+
         vibrant_colors.sort(key=color_score, reverse=True)
 
         if len(vibrant_colors) < 3: # If we have less then 3 vibrant color, return random
             while len(vibrant_colors) < 3:
                 vibrant_colors.append((tuple(random.randint(100, 200) for _ in range(3)), 1)) # Added count for the sort
                 vibrant_colors.sort(key=color_score, reverse=True)
-            
+
         # Select top 3 unique colors by checking for distance between them and if at least one value > 200
         selected_colors = []
-        
+
         for color, _ in vibrant_colors:
             if self.is_strong_color(color):
                 is_similar = False
@@ -152,7 +152,7 @@ class WLEDImageSync(hass.Hass):
             selected_colors.sort(key=color_score, reverse=True)
 
         return self.rgb_to_hex(selected_colors[0][0]), self.rgb_to_hex(selected_colors[1][0]), self.rgb_to_hex(selected_colors[2][0])
-        
+
 
     def color_distance(self, color1, color2):
         """Calculate the Euclidean distance between two RGB colors."""
@@ -172,6 +172,7 @@ class WLEDImageSync(hass.Hass):
         return True
 
     def rgb_to_hex(self, rgb):
+        """Converts an RGB tuple to a hex string without the '#' prefix."""
         return '{:02x}{:02x}{:02x}'.format(rgb[0], rgb[1], rgb[2])
 
 
@@ -200,7 +201,8 @@ class WLEDImageSync(hass.Hass):
         url = f"http://{self.wled_ip}/json/state"
         async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
             try:
-                async with session.post(url, data=json.dumps(payload)) as response:
+                # Use the 'json' parameter to let aiohttp handle JSON encoding and headers
+                async with session.post(url, json=payload) as response:
                     response.raise_for_status()  # Raise an error for bad status codes
                     if response.status != 200:
                         self.log(f"WLED Update Fail. Response code: {response.status} Response: {await response.text()}")
