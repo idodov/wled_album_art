@@ -177,7 +177,6 @@ class WLEDImageSync(hass.Hass):
 
 
     async def update_wled(self, colors):
-        """Sends the color data to WLED asynchronously"""
         # Create WLED JSON payload
         payload = {
             'on': True,
